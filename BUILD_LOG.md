@@ -125,4 +125,51 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
 - Decisions: none — no ambiguity found between the spec's HD1-HD4 rules and the real data. Every rule
   in spec §3.7 for HD1-HD4 matched the fixture exactly on first implementation.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 91feb00 feat(server): detect analysis-evidence defects HD1-HD4
+
+## P3 — Detectors HD5-HD6 · 2026-09-28 IST
+
+- Did: src/server/detect/hd5-identity-conflict.ts (union-find over ledger indices, connected by shared
+  id or shared (date, match_key)), hd6-dangling-project-ref.ts (all four sites + Levenshtein suggestion),
+  detect/index.ts (runDetectors aggregator). Extended test/detectors.test.ts with T-14, T-15, the full
+  six-detector T-16, T-17, and an integration test that runs `runDetectors` once against the real fixture
+  and checks every Appendix A number in one pass.
+- Verified (exact counts against the real fixture):
+  - HD5: **4** groups, matching Appendix A-3 exactly by groupId: `HD5:19,20` exact_id_collision
+    (northwind, 1 shared source path), `HD5:27,28` near_duplicate (studio_ops, 3 shared source paths,
+    member 28 `_dup` correctly flagged `idMatchesRule: false`, member 27 `true`), `HD5:50,51`
+    exact_id_collision (harborline, 2 shared paths), `HD5:57,58` exact_id_collision (studio_ops, 2 shared
+    paths). Zero `id_format_mismatch` groups in the real data, matching "0 standalone" in spec §3.7.
+  - HD6: **1** finding — routing-hints.json index 2 (display "#3"), `drafting` -> `quil`, suggestion
+    `quill` — matches spec exactly.
+  - `runDetectors()` run once against the real fixture context reproduces every Appendix A-1/A-2/A-3
+    number simultaneously (HD1=27, HD2=3, HD3=1, HD4=1, HD5=4, HD6=1, runCheck
+    {recordedRunCount:45, minRun:100, maxRun:160, verified:0, unverifiable:24, flagged:3}) — this is the
+    same aggregation path report.ts will consume in P4, exercised end-to-end now.
+  - Edge cases (HD5): synthetic same-id-different-match_key stays exact_id_collision (kind depends only
+    on id equality, not date/match_key, per spec's literal rule); a 3-node union-find chain (A~B by id,
+    B~C by identityKey) correctly merges into one 3-member near_duplicate group; a lone record whose id
+    breaks the canonical `{date}_{match_key}` rule becomes its own 1-member id_format_mismatch group;
+    unique canonical records produce no group at all.
+  - Edge cases (HD6): unknown id in `projects` (signal_projects site), unknown id as a status key
+    (status_key_unknown), a *valid* project id used as a status key that isn't in the signal's `projects`
+    (status_key_not_routed) — confirmed this site exists in the code path even though the real fixture
+    never triggers it (§3.4: "every status key is also in the signal's projects"). A fallback id
+    (`internal_unsorted`) is correctly treated as valid, not a defect. Suggestion is `null` both when no
+    config id is within edit distance 2, and when two config ids are equidistant (constructed a minimal
+    `cat`/`car` config to force a genuine tie, rather than trusting the tie-breaking logic unverified).
+  - T-16 (full): all six detectors run against a deep-frozen context throw nothing and produce output
+    identical to an unfrozen clone of the same data.
+  - T-17: grepped all of `src/` for `run-999`, the bare word `quil`, and any `2026-0X-XX` date literal —
+    zero matches, confirming no fixture-specific value is hard-coded into detector logic.
+  - `npm run verify` — typecheck clean, 49/49 tests pass (4 files), production build succeeds.
+  - Re-confirmed after this full run: `fixture/` SHA-256 hashes unchanged (still match Appendix C), no
+    `data/` directory created at the repo root.
+- Caught: nothing in HD5/HD6 logic itself. (The one mistake this phase was the HD2 test miscount caught
+  in the HD1-HD4 commit above.)
+- Decisions: For HD6 suggestions, distance is computed only against `config.projects[].id` (not the
+  fallback ids `internal_unsorted`/`unclassified`), matching the spec's literal wording "closest **config**
+  project id" — confirmed this reading doesn't affect the fixture's one real finding (`quil` -> `quill`
+  is unambiguous either way), so it isn't a case the human needs to weigh in on.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
