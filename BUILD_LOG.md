@@ -323,4 +323,58 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
     ("5f0c…") only shows it truncated in a toast message, not as a generation rule; a UUID is simplest
     and collision-safe. The UI can truncate for display in P7/P8.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 619acf3 feat(server): add the single guarded repair route with atomic writes and audit trail
+
+## P7 — UI, read-only · 2026-09-28 IST
+
+- Did: src/lib/api-client.ts (fetchDefects, typed error class); src/app/globals.css (full spec §5.8
+  CSS variables, layout, responsive rules); components Dashboard, Header, ReviewerField, KpiStrip,
+  SystemicBanner, ChecksInfo, ProjectRail, ProjectPanel, ClassFilter, ConflictGroupCard, DefectRow,
+  ConfigPanel, StateViews, Toast; src/app/page.tsx renders `<Dashboard />`. Action buttons render but
+  stay disabled with a "next phase" note, per spec P7.1 (dialogs arrive in P8).
+- Before this: gave the human an independent, code-derived policy table (every repair action, which
+  classes it applies to, who may do it, why) built by reading `policy.ts`/`repairs/apply.ts` directly
+  rather than the spec text, per their request — and re-flagged the W10 code-mapping resolution from
+  P5 as the one place code and spec prose diverge.
+- Verified:
+  - `npm run typecheck` — clean (one real finding: `nothingMatchesFilter`'s `classFilter !== "all"`
+    check let TypeScript's aliased-condition narrowing collapse a redundant ternary in
+    `ProjectPanel.tsx` down to `never`; simplified the JSX to rely on the narrowing instead of
+    re-checking it).
+  - `npm test` — 103/103 (same suite as P5; T-60 re-confirms no component imports `@/server`,
+    `server-only`, `node:fs`, or any JSON/fixture path now that the full component tree exists).
+  - `npm run build` — compiles; `/` still prerenders as static (○) even though `Dashboard` fetches
+    client-side on mount.
+  - **Actually opened it in a browser and drove it**, not just typechecked it: installed Playwright
+    into an isolated scratch directory *outside* the repo (own `package.json`, never touched this
+    project's `package.json`/lockfile — satisfies "don't add libraries the spec doesn't ask for"),
+    launched the real dev server, and drove headless Chromium through: initial load, selecting
+    Harborline in the rail, clicking a class-filter chip, expanding "About these checks", and resizing
+    below 900px. Zero console/page errors at every step. Screenshots confirmed: KPI tiles read 23/4/0
+    of 27 exactly as computed; the systemic banner shows the HD1 message; Studio Ops (rank 1) shows
+    both identity-conflict cards side by side with the near-duplicate's `_dup` member correctly
+    flagged; Harborline's human-first row order and its one agent-safe row match Appendix A-6 exactly;
+    the class-filter chip correctly narrows to just the identity-conflicts section for "HD5" and hides
+    the human/agent sections; below 900px the rail becomes a `<select>` and conflict members stack
+    vertically, exactly per spec §5.8.3.
+  - One thing in the screenshots that is *not* a bug: a small black circular dev-tools indicator badge
+    in the bottom-left corner is Next.js's own dev-mode overlay (shown only under `next dev`), not
+    application code — it won't appear in the production `next start` build.
+  - Re-confirmed after the browser session: `fixture/` hashes unchanged, `data/` cleaned up, dev
+    server process stopped by PID (not `pkill -f`, per M-17).
+- Caught: nothing beyond the one narrow TypeScript narrowing case above (a type-checker correctness
+  note, not a logic bug — the redundant check would never have produced wrong output either way).
+- Decisions:
+  - `AuditPanel`/`RepairDialog`/`SummaryDialog` are not part of this phase (spec P8.1's file list, not
+    P7.1's) — the "Recent changes" section from the wireframe is deferred to P8 rather than stubbed
+    with a fake collapsed disclosure now.
+  - The P7-specific "action buttons render but stay disabled" instruction is implemented as an
+    unconditional `disabled` attribute with a `title` explaining repairs arrive next phase — this is
+    distinct from the spec's later "Reviewer missing → buttons disabled with visible reason" behavior
+    (§5.7), which only makes sense once P8 wires the reviewer-gated dialogs; implementing that gating
+    now would have nothing to gate.
+  - `ConflictGroupCard`'s and `DefectRow`'s exact wording (kind labels, evidence text) again follows
+    the spec's class descriptions and computed numbers rather than inventing copy, consistent with the
+    P4/P5 decisions already logged.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
