@@ -36,4 +36,24 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
     merge commits") will not be literally satisfied — history will be a single sequence of phase commits on
     `feat/defect-dashboard`. DoD-11 (private repo + `supanova-furney` collaborator) is the human's
     responsibility, not verified by Claude Code.
+- Commits: f4af5d6 chore: bootstrap repo conventions and fix corrupted README
+
+## P1 — Toolchain scaffold · 2026-09-28 IST
+
+- Did: package.json (pinned deps exactly per spec §2), tsconfig.json, next.config.ts, vitest.config.ts,
+  test/stubs/server-only.ts, .nvmrc, src/app/layout.tsx + page.tsx + globals.css placeholders,
+  test/fixture-integrity.test.ts (T-01).
+- Verified:
+  - `npm install` once to create package-lock.json, then `rm -rf node_modules && npm ci` — clean
+    reinstall succeeds.
+  - Confirmed every dependency resolved to the exact pinned version in package-lock.json (next 16.3.6,
+    react/react-dom 19.3.0, server-only 0.0.1, zod 4.6.5, typescript 6.0.3, vitest 5.0.2, @types/node
+    22.20.4, @types/react 19.3.0, @types/react-dom 19.3.0) — no `^`/`~` drift.
+  - `npm run verify` (typecheck && test && build) exits 0: tsc clean, 6/6 tests pass (T-01 fixture
+    hashes), `next build` compiles and prerenders `/` and `/_not-found` as static.
+  - `git status --porcelain` after the build shows only source files Claude Code created —
+    tsconfig.json unmodified by Next, `.next/`, `node_modules/`, `next-env.d.ts` correctly ignored.
+- Caught: nothing.
+- Decisions: none beyond the spec.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
