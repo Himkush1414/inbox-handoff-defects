@@ -1,5 +1,5 @@
 "use client";
-import { CLASS_META, type ClassId, type ProjectGroup } from "@/lib/contracts";
+import { CLASS_META, type ActionView, type ClassId, type DefectRow as DefectRowType, type ProjectGroup } from "@/lib/contracts";
 import ClassFilter from "./ClassFilter";
 import ConflictGroupCard from "./ConflictGroupCard";
 import DefectRow from "./DefectRow";
@@ -8,10 +8,14 @@ export default function ProjectPanel({
   project,
   classFilter,
   onClassFilterChange,
+  reviewerValid,
+  onAction,
 }: {
   project: ProjectGroup;
   classFilter: ClassId | "all";
   onClassFilterChange: (value: ClassId | "all") => void;
+  reviewerValid: boolean;
+  onAction: (row: DefectRowType, op: ActionView["op"]) => void;
 }) {
   const isClean =
     project.counts.identityConflicts === 0 && project.counts.humanFirst === 0 && project.counts.agentSafe === 0;
@@ -30,7 +34,7 @@ export default function ProjectPanel({
   const handedOffLine =
     project.counts.analyzed === 0
       ? "No analysed signals yet."
-      : `Handed off ${project.counts.handedOff} of ${project.counts.analyzed}`;
+      : `${project.counts.handedOff} of ${project.counts.analyzed} analysed fully handed off`;
 
   return (
     <section className="project-panel" aria-label={project.name}>
@@ -38,7 +42,9 @@ export default function ProjectPanel({
         <h2>
           {project.name} · {project.type} · rank {project.rank}
         </h2>
-        <span className="muted">{handedOffLine}</span>
+        <span className="muted" title="Handed off = analysed, with a summary and references that resolve — not the same as repaired.">
+          {handedOffLine}
+        </span>
       </header>
 
       {isClean ? (
@@ -80,7 +86,7 @@ export default function ProjectPanel({
                   ) : (
                     <ul>
                       {humanRows.map((r) => (
-                        <DefectRow key={r.rowKey} row={r} />
+                        <DefectRow key={r.rowKey} row={r} reviewerValid={reviewerValid} onAction={onAction} />
                       ))}
                     </ul>
                   )}
@@ -95,7 +101,7 @@ export default function ProjectPanel({
                   ) : (
                     <ul>
                       {agentRows.map((r) => (
-                        <DefectRow key={r.rowKey} row={r} />
+                        <DefectRow key={r.rowKey} row={r} reviewerValid={reviewerValid} onAction={onAction} />
                       ))}
                     </ul>
                   )}

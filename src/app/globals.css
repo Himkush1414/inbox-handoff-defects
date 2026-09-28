@@ -406,6 +406,91 @@ button:disabled {
   text-align: center;
 }
 
+.action-agent-eligible {
+  border-color: var(--agent-text);
+  box-shadow: inset 0 0 0 1px var(--agent-text);
+}
+
+.dialog-hint {
+  margin: 4px 0 0;
+}
+
+.audit-panel {
+  margin-top: 16px;
+}
+
+.audit-panel ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.audit-panel li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.repair-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 480px;
+  width: 90vw;
+}
+
+.repair-dialog::backdrop {
+  background: rgba(17, 24, 39, 0.4);
+}
+
+.repair-dialog h2 {
+  margin-top: 0;
+}
+
+.before-after {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.before-after th,
+.before-after td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.dialog-field {
+  display: block;
+  margin: 12px 0 4px;
+}
+
+.dialog-field input,
+.dialog-field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.dialog-error {
+  color: var(--blocker-text);
+  background: var(--blocker-bg);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 .toast {
   position: fixed;
   bottom: 16px;

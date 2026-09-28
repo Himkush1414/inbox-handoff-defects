@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import type { ClassId, DefectReport } from "@/lib/contracts";
+import type { ActionView, ClassId, DefectReport, DefectRow as DefectRowType } from "@/lib/contracts";
 import { ApiRequestError, fetchDefects } from "@/lib/api-client";
+import { isValidReviewerName } from "./ReviewerField";
 import Header from "./Header";
 import KpiStrip from "./KpiStrip";
 import SystemicBanner from "./SystemicBanner";
@@ -9,6 +10,10 @@ import ChecksInfo from "./ChecksInfo";
 import ProjectRail from "./ProjectRail";
 import ProjectPanel from "./ProjectPanel";
 import ConfigPanel from "./ConfigPanel";
+import RepairDialog from "./RepairDialog";
+import SummaryDialog from "./SummaryDialog";
+import AuditPanel from "./AuditPanel";
+import Toast from "./Toast";
 import {
   EmptyLedgerView,
   LoadingView,
@@ -20,6 +25,7 @@ import {
 
 type Phase = "loading" | "ready" | "error";
 type ErrorInfo = { kind: "network" } | { kind: "server"; code: string; message: string; details?: unknown };
+type DialogState = { type: "none" } | { type: "requeue"; row: DefectRowType } | { type: "summary"; row: DefectRowType };
 
 export default function Dashboard() {
   const [report, setReport] = useState<DefectReport | null>(null);
@@ -29,6 +35,9 @@ export default function Dashboard() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | "__config" | null>(null);
   const [classFilter, setClassFilter] = useState<ClassId | "all">("all");
   const [reviewer, setReviewer] = useState("");
+  const [dialog, setDialog] = useState<DialogState>({ type: "none" });
+  const [toast, setToast] = useState<string | null>(null);
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
@@ -58,6 +67,30 @@ export default function Dashboard() {
   useEffect(() => {
     load(false);
   }, [load]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const reviewerValid = isValidReviewerName(reviewer);
+
+  function handleAction(row: DefectRowType, op: ActionView["op"]) {
+    if (!reviewerValid) return;
+    setDialog(op === "requeue_analysis" ? { type: "requeue", row } : { type: "summary", row });
+  }
+
+  function handleDialogCancel() {
+    setDialog({ type: "none" });
+  }
+
+  function handleDialogDone(message: string) {
+    setDialog({ type: "none" });
+    setToast(message);
+    setAuditRefreshKey((k) => k + 1);
+    load(true);
+  }
 
   if (phase === "loading") {
     return (
@@ -125,12 +158,41 @@ export default function Dashboard() {
               {selectedProjectId === "__config" ? (
                 <ConfigPanel findings={report.config} />
               ) : selectedProject ? (
-                <ProjectPanel project={selectedProject} classFilter={classFilter} onClassFilterChange={setClassFilter} />
+                <ProjectPanel
+                  project={selectedProject}
+                  classFilter={classFilter}
+                  onClassFilterChange={setClassFilter}
+                  reviewerValid={reviewerValid}
+                  onAction={handleAction}
+                />
               ) : null}
             </div>
           )}
+
+          <AuditPanel refreshKey={auditRefreshKey} />
         </>
       )}
+
+      {dialog.type === "requeue" && (
+        <RepairDialog
+          row={dialog.row}
+          revision={report.revision}
+          reviewerName={reviewer.trim()}
+          onCancel={handleDialogCancel}
+          onDone={handleDialogDone}
+        />
+      )}
+      {dialog.type === "summary" && (
+        <SummaryDialog
+          row={dialog.row}
+          revision={report.revision}
+          reviewerName={reviewer.trim()}
+          onCancel={handleDialogCancel}
+          onDone={handleDialogDone}
+        />
+      )}
+
+      <Toast message={toast} />
     </main>
   );
 }

@@ -31,8 +31,11 @@ export default function ProjectRail({
                 <span className="rail-rank">{p.rank}</span> {p.name}
               </span>
               <span className="muted">{countsLine(p)}</span>
-              <span className="muted">
-                Handed off {p.counts.handedOff} of {p.counts.analyzed}
+              <span
+                className="muted"
+                title="Handed off = analysed, with a summary and references that resolve — not the same as repaired."
+              >
+                {p.counts.handedOff} of {p.counts.analyzed} analysed fully handed off
               </span>
             </button>
           </li>

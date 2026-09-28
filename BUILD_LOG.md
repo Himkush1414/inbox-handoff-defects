@@ -377,4 +377,87 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
     the spec's class descriptions and computed numbers rather than inventing copy, consistent with the
     P4/P5 decisions already logged.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: bbb135b feat(ui): per-project defect dashboard with honest loading, empty and error states
+
+## P7 feedback fixes (pre-P8) · 2026-09-28 IST
+
+- Did (two small wording fixes the human caught on the first screen before P8 started):
+  1. "Handed off X of Y" was ambiguous (readable as "fully repaired"). Reworded to "X of Y analysed
+     fully handed off" in both ProjectRail and ProjectPanel, and added a `title` tooltip on both:
+     "Handed off = analysed, with a summary and references that resolve — not the same as repaired."
+  2. The full systemic laneReason sentence ("Missing summary affects 27 of 27 analysed entries...")
+     was repeated verbatim on every human-first row, duplicating the banner above. Collapsed it in
+     DefectRow.tsx: agent-safe rows still show their full (row-specific, non-redundant) laneReason;
+     human-first rows now show a short "pipeline pattern — see banner above" with the full sentence
+     still available via `title` on hover. This is safe to generalize because `laneFor()` guarantees a
+     human_first row's classes are ALL systemic, so this sentence is always fully explained by the
+     banner already on screen — verified this holds for every human_first row in the real fixture, not
+     assumed.
+- Verified: `npm run typecheck`, `npm test` (103/103), `npm run build` all still green after these two
+  changes (folded into the P8 verify run below rather than a separate one, since they're presentational
+  and touched no server code).
+
+## P8 — UI actions · 2026-09-28 IST
+
+- Did: RepairDialog.tsx (A2, native `<dialog>`, before/after table, optional reason), SummaryDialog.tsx
+  (A3, textarea with live 20-2000 char counter), AuditPanel.tsx (`<details>` "Recent changes (total)"),
+  extended api-client.ts with `postRepair`/`fetchAudit`/`describeRepairError` (the §5.6 response-table
+  mapping — human text only, the server's own `message` field interpolated into fixed templates, never
+  a raw code or JSON shown to the person using the dialog). Wired reviewer-gated (A1) action buttons in
+  DefectRow.tsx, with a visible border marking actions that are also agent-eligible so human vs.
+  agent-eligible repairs stay visually distinct per the human's request (not just the lane badge
+  color). Dashboard.tsx now owns dialog/toast/audit-refresh state and always refetches the whole report
+  after a successful (or close-worthy-failed) write — no optimistic updates, per spec §5.1.3.
+- **Bug caught by testing in the browser, not by reading the code** (would not have been caught by
+  typecheck/tests, since nothing in the test suite drives the UI): the "Recent changes (N)" collapsed
+  count only updated after the panel had been manually opened at least once. A fresh page load ->
+  successful repair -> the summary still showed the stale "(0)" until the user clicked to expand it.
+  This violates spec §5.1.2 literally: "GET /api/audit when 'Recent changes' is first opened **and
+  after each successful write**." Root cause: the fetch effect only ran `if (opened)`, ignoring
+  `refreshKey` changes while the panel had never been opened. Fixed to `if (opened || refreshKey > 0)`.
+  Reproduced the bug first (screenshot showing "(0)" right after a successful-repair toast), applied
+  the fix, then reproduced the corrected behavior (screenshot showing "(1)" with the panel still
+  collapsed and never having been opened) before moving on.
+- Verified live in a browser (Playwright, isolated scratch dir outside the repo again — package.json
+  untouched), against the real dev server, three scenarios the human asked for by name:
+  1. **Blocked**: with no reviewer name entered, every action button in every project is disabled, and
+     a muted line "Enter your name in \"Acting as\" first." is visible next to them (not just a
+     tooltip) — screenshot confirms both the KpiStrip/banner state and the disabled buttons together.
+  2. **Successful repair**: typed a reviewer name, opened Atlas's "Agent may repair" section, confirmed
+     the agent-eligible button carries the green outline marker, clicked it, confirmed the before/after
+     table in the dialog matches the real record exactly (state analyzed->pending, analyzed_at
+     2026-07-08->—, files_reviewed 1->0, analysis_ref run-54->—), submitted, and confirmed: a toast
+     ("Re-queued · audit 094426db"), the KPI strip updating (agentSafe 4->3), the row disappearing from
+     Atlas's agent-safe section (it's no longer analysed at all, so it isn't "handed off" either — it
+     returned to pending, exactly matching the retract semantics from spec §6.1), Atlas's rank
+     recomputing, and the audit panel showing the new entry with the correct actor/op/target/before-
+     after — all without ever manually refreshing.
+  3. **Stale revision**: opened a repair dialog (capturing its revision), then — simulating a second
+     browser tab — issued a direct `POST /api/repairs` from the page's own fetch context using a
+     *different* row, changing the ledger's revision out from under the open dialog. Submitted the
+     stale dialog: got exactly the spec's message ("The ledger changed since you loaded it. Reloaded;
+     check the row and try again."), the dialog closed (not left open), the report refetched showing
+     both the legitimate out-of-band write and nothing from the rejected stale one, and the row the
+     stale dialog had targeted was left completely unchanged. Re-checked `GET /api/defects` and
+     `GET /api/audit` afterward: ledger `signalCount` still 77, zero `skippedRecords`, audit `total`
+     and `corruptLines` both consistent with exactly the legitimate writes — **no weird state was left
+     behind by the rejected attempt.**
+  - Zero console/page errors across all three scenarios (one informational browser console line
+    logging the expected 409 network response is not an application error).
+  - `npm run typecheck` — clean. `npm test` — 103/103 (9 files; no UI-level tests were added, since the
+    spec's test inventory has no T-xx entries for the React components — coverage here is the manual
+    browser verification above, per spec's own P7/P8 acceptance criteria being manual checks, not
+    automated tests). `npm run build` — compiles; still exactly one route (`/api/repairs`) exports a
+    mutating method.
+  - Re-confirmed after the full session: `fixture/` hashes unchanged, `data/` and the Playwright
+    scratch directory both cleaned up, dev server stopped by PID each time (never `pkill -f`).
+- Decisions:
+  - The dashboard's `POST /api/repairs` calls always send `actor: { kind: "human", name }`, per spec
+    A2's literal instruction — there is no UI control to submit as an agent. The lane badge and the
+    agent-eligible button marker are informational (showing what an automated caller, i.e. the
+    `scripts/agent-repair.mjs` from P9, *could* do), not a mode switch in this UI.
+  - `describeRepairError()`'s "any 403" and default-5xx branches match on `err.code`, not HTTP status,
+    since the server's error codes already partition cleanly into the families spec's response table
+    describes; no case needed a raw status check.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
