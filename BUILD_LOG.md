@@ -86,4 +86,43 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
   (only signal-ledger.json gets one in §4.3), so `fixture.ts` does minimal structural validation (required
   keys/types) rather than inventing a stricter schema not asked for in the spec.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 9a4cc57 feat(server): read fixture and seeded ledger copy with validation and revisions
+
+## P3 — Detectors HD1-HD4 · 2026-09-28 IST
+
+- Did: src/server/detect/context.ts (canonical helpers + buildContext per spec §3.6),
+  detect/finding.ts, detect/hd1-missing-summary.ts, detect/hd2-dangling-analysis-ref.ts,
+  detect/hd3-dangling-source-ref.ts, detect/hd4-analysis-without-sources.ts.
+  Test helpers: test/helpers/builders.ts (makeSignal/makeEntry/makeCtx), test/helpers/fixtureContext.ts
+  (loads a DetectorContext straight from the real fixture/, read-only, without touching data/).
+  test/detectors.test.ts: T-10, T-11, T-12, T-13, and the HD1-HD4 slice of T-16.
+- Verified (exact counts against the real fixture, per the human's request to be extra careful here):
+  - HD1: **27** rows, split exactly harborline 9 / atlas 6 / northwind 4 / quill 4 / studio_ops 4 —
+    matches spec §3.7 exactly.
+  - HD2: **3** rows, all `analysis_ref: "run-999"`, all reason `beyond_recorded_runs`, at exactly
+    ledger indices {19:northwind, 22:harborline, 26:atlas} — matches spec Appendix A-2. Also asserted
+    `verified: 0`, `unverifiable: 24`, `recordedRunCount: 45`, `minRun: 100`, `maxRun: 160`.
+  - HD3: **1** row, ledger index 0 / atlas, missing path
+    `sources/granola/2026-07-06-atlas_permit_intake.md` — matches spec exactly.
+  - HD4: **1** row, ledger index 12 / northwind, sourceCount 0 — matches spec exactly.
+  - Every one of these numbers came from running the detector against `loadRealFixtureContext()` (the
+    real `fixture/signal-ledger.json`, `config.json`, `routing-hints.json`, `run-log.jsonl`), not from
+    copying the spec's numbers into the assertions blind.
+  - Edge cases (per the human's request): empty ledger (`makeCtx({ signals: [] })`) — all four detectors
+    return zero findings; `summary: null` vs `summary: ""` are both correctly treated as blank by HD1
+    (`isBlank`); whitespace-only summary is blank; a present-but-empty-object summary counts as PRESENT,
+    not blank (spec's explicit anti-false-positive rule); a `pending` entry is never eligible for HD1-HD4.
+  - HD2 synthetic matrix covers all six code-path branches from the spec's code block (missing,
+    malformed via wrong case/non-digit/non-string, not_in_run_log, verified, unverifiable both above-log
+    and below-minRun, beyond_recorded_runs) plus the empty-run-log case (`maxRun === null`).
+  - T-16 (HD1-HD4 slice): running all four detectors against a deep-frozen context vs an unfrozen clone
+    of the same data throws nothing and produces identical output — detectors don't mutate their input.
+  - `npm run verify` — typecheck clean, 35/35 tests pass (4 files), production build succeeds.
+- Caught: First draft of the HD2 synthetic-matrix test asserted `findings` length 5 instead of 6 (a
+  hand-counting slip while writing the test, not a detector bug) — 8 synthetic cases produce 1 missing +
+  3 malformed + 1 not_in_run_log + 1 beyond_recorded_runs = 6 defects; verified/unverifiable produce no
+  findings. Caught immediately by the failing test, fixed the assertion (not the detector).
+- Decisions: none — no ambiguity found between the spec's HD1-HD4 rules and the real data. Every rule
+  in spec §3.7 for HD1-HD4 matched the fixture exactly on first implementation.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
