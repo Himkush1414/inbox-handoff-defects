@@ -56,4 +56,34 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
 - Caught: nothing.
 - Decisions: none beyond the spec.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 3740a31 chore: scaffold Next.js 16 + Vitest toolchain with pinned versions
+
+## P2 — Read path · 2026-09-28 IST
+
+- Did: src/server/config.ts, errors.ts, fixture.ts (readConfig/readRoutingHints/readRunLog),
+  ledger/schema.ts (Zod validators per spec §4.3), ledger/store.ts (seed, readLedger, atomicWrite,
+  withWriteLock, injectable Io), src/lib/contracts.ts (report types + CLASS_META),
+  scripts/reset-data.mjs. Tests: test/helpers/tmp.ts, test/ledger-store.test.ts (T-02...T-07),
+  test/architecture.test.ts (T-60, T-61, T-62, T-64; T-63 arrives in P5).
+- Verified:
+  - Before writing schema.ts, validated the spec's exact Zod block against the real fixture directly in
+    a throwaway node script: all 77 signals pass `Signal.safeParse`, and the ledger root passes
+    `Root.safeParse` — confirms the schema in the spec actually matches the real data, not just the prose.
+  - `npm run typecheck` — clean.
+  - `npm test` — 3 files, 20/20 tests pass (T-02...T-07 ledger-store; T-60/61/62/64 architecture;
+    T-01 fixture-integrity from P1).
+  - `npm run verify` — typecheck + tests + `next build` all pass.
+  - Confirmed no test touched the repo's own `fixture/` or `data/`: fixture hashes unchanged after the
+    run, no `data/` directory created at the repo root (per spec §8.1.2, tests use `makeTempEnv()`).
+  - Manually exercised `scripts/reset-data.mjs` end-to-end against a synthetic `data/` dir: reports
+    `deleted ...` for each file on first run, `not present: ...` on the second; `data/` stays gitignored.
+- Caught: Noticed `process.platform` reports `win32` here even though the shell is WSL2 Linux bash —
+  the `node` binary in PATH is a Windows-native executable reached through WSL interop. This means the
+  spec's Windows-specific branches (P9 smoke script's `taskkill`, `shell: true` for spawning npm, and the
+  EPERM/EACCES/EBUSY rename-retry logic already built into `atomicWrite`) are live code paths in this
+  environment, not dead ones written defensively for a platform we're not on. Keeping this in mind for P9.
+- Decisions: For config.json/routing-hints.json/run-log.jsonl, the spec doesn't give an exact Zod schema
+  (only signal-ledger.json gets one in §4.3), so `fixture.ts` does minimal structural validation (required
+  keys/types) rather than inventing a stricter schema not asked for in the spec.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
