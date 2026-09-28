@@ -1,6 +1,6 @@
 import "server-only";
-import { sourcePaths, type DetectorContext } from "./context.js";
-import type { DetectorFinding } from "./finding.js";
+import { sourcePaths, type DetectorContext } from "./context";
+import type { DetectorFinding } from "./finding";
 
 /** HD3 · dangling_source_ref · a reviewed file the signal no longer lists as a source (spec §3.7). Ledger-internal only. */
 export function detectHD3(ctx: DetectorContext): DetectorFinding[] {

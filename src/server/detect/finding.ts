@@ -1,5 +1,5 @@
 import "server-only";
-import type { ClassId } from "../../lib/contracts.js";
+import type { ClassId } from "../../lib/contracts";
 
 export interface DetectorFinding {
   classId: ClassId;

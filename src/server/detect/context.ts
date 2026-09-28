@@ -1,6 +1,6 @@
 import "server-only";
-import type { Config, RoutingHint, RunLogEntry } from "../fixture.js";
-import type { RawSignal } from "../ledger/schema.js";
+import type { Config, RoutingHint, RunLogEntry } from "../fixture";
+import type { RawSignal } from "../ledger/schema";
 
 export interface IndexedSignal {
   ledgerIndex: number;

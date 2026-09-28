@@ -172,4 +172,78 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
   project id" — confirmed this reading doesn't affect the fixture's one real finding (`quil` -> `quill`
   is unambiguous either way), so it isn't a case the human needs to weigh in on.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 22b7add feat(server): detect identity conflicts and dangling project refs HD5-HD6
+
+## P4 — Policy, report, read routes · 2026-09-28 IST
+
+- Did: src/server/policy.ts (systemic threshold, laneFor, laneReasonFor, actionsFor per spec §4.9),
+  src/server/report.ts (buildReport: locking, rows, systemic patterns, lanes, severity, project
+  grouping/ranking per spec §4.7), src/app/api/health/route.ts (R1), src/app/api/defects/route.ts (R2).
+  Tests: test/policy.test.ts (T-20, T-21, T-22), test/report.test.ts (T-30...T-34),
+  test/routes-read.test.ts (T-35, T-36), test/helpers/realReport.ts.
+- **Mistake caught mid-phase, fixed with the human's explicit go-ahead before continuing:**
+  `npm run build` failed with `Module not found` for `./schema.js`, `./policy.js`, and every other
+  relative import under `src/server/**` written with a `.js` suffix (e.g. `import { Root } from
+  "./schema.js"`) instead of extensionless (`"./schema"`). tsconfig's `"moduleResolution": "bundler"`
+  (spec §2, unchanged) expects extensionless relative imports; Next's Turbopack bundler does not remap
+  a `.js` specifier onto a sibling `.ts` file the way Vite does.
+  - **Why P2's and P3's `npm run verify` didn't catch it:** `tsc --noEmit` and Vitest (via Vite) both
+    resolve `.js` specifiers to co-located `.ts` files leniently, so typecheck and every test passed
+    throughout P2 and P3. But Next's production build only compiles modules actually reachable from an
+    entry point (a page or a route handler) — and until P4 added `src/app/api/health/route.ts` and
+    `src/app/api/defects/route.ts`, nothing under `src/app` imported the `src/server` chain at all, so
+    Turbopack never had a reason to resolve those relative imports. The bug was latent in every file
+    written since P2; P4 was simply the first phase whose own new code (the routes) triggered it.
+  - Fix (approved by the human before applying): stripped the `.js` suffix from every relative import
+    under `src/server/**` (13 files: config.ts's dependents were unaffected since config.ts itself has
+    no relative-.js imports; fixture.ts, ledger/store.ts, policy.ts, report.ts, and all of
+    detect/{context,finding,hd1..hd6,index}.ts). No tsconfig change, no new dependency. Also checked
+    `test/` and `scripts/` for the same pattern per the human's request — found none; the bug was
+    confined to `src/server/**`.
+  - Added a standing guard so this can't silently regress: a new test in test/architecture.test.ts
+    scans every file in `src/server/**/*.ts` for a relative import ending in `.js` and fails the suite
+    if it finds one — this runs on every `npm test`, not just at build time, so the next occurrence is
+    caught immediately instead of waiting for a route to expose it again.
+  - Re-ran, in order, and did not move on until all three were green: `npm run typecheck` (clean),
+    `npm test` (68/68, 7 files, including the new guard), `npm run build` (compiles; `/api/health` and
+    `/api/defects` both correctly marked `ƒ (Dynamic)`).
+- Verified (after the fix):
+  - `GET /api/defects` on a fresh temp env returns 200, `Cache-Control: no-store`, and
+    `totals = {humanFirst:23, agentSafe:4, identityConflicts:4, configFindings:1}` exactly (T-35).
+  - `GET /api/health` returns `signalCount: 77`, `ok: true` (T-36); a corrupted data ledger makes
+    `GET /api/defects` return the `LEDGER_UNREADABLE` envelope at 500, not a partial report (T-36).
+  - `buildReport()` run against the real fixture reproduces Appendix A-4 (project order and every count
+    column), A-6 (row order for harborline and atlas, both lanes), and A-8 (ledger/classes/systemic/
+    totals/project-order/config) exactly, verified field-by-field against the real fixture, not asserted
+    from memory.
+  - T-33 structural checks: every HD5 group lands under its correct project, all rowKeys and groupIds
+    are unique, and no ledger index inside a locked identity-conflict group leaks into any project's
+    humanFirst/agentSafe row lists.
+  - T-34: an empty ledger produces exactly the 5 config projects, all clean (zero counts), zero totals,
+    no systemic patterns, and all six class counts at 0.
+  - T-20/21/22: the systemic threshold matches the spec's five worked examples exactly (27/27→true,
+    3/27→false, 5/10→true, 4/8→false, 0/0→false, the last guarding division by zero); a synthetic
+    isolated (non-systemic) HD1 case is correctly agent_safe; actionsFor returns the exact
+    allowedFor arrays from spec §4.9.2 for both lanes.
+- Decisions:
+  - `ActionView.disabledReason` is always `null` for every action `actionsFor()` returns, because
+    availability is already decided before an action is included in the array at all (an
+    unavailable action is simply omitted, not included-but-disabled). The UI's own reviewer-name
+    gating (A1) is a separate, client-only disabled state layered on top in P7/P8, not something the
+    server needs to express here. Flagging this as a design choice, not asking the human to confirm,
+    since §4.9.5 already settles it ("The UI never computes policy" — but it may still add its own
+    local gating independent of server policy).
+  - `SystemicPattern.message` and `ConflictGroup.message` wording is not specified verbatim by the spec
+    (only the wireframe in §5.2 shows example prose for the banner). Wrote plain, factual sentences
+    from the same numbers the UI will already have (count/eligible/label, or group kind), rather than
+    inventing claims not in the data. No test asserts exact string content here, only structure/counts.
+  - HD6 suggestion distance is computed only against `config.projects[].id`, not the fallback ids
+    (`internal_unsorted`/`unclassified`), per the spec's literal "closest **config** project id"
+    wording — already logged in the P3 entry, reconfirmed here since report.ts is what actually
+    surfaces `suggestion` to the report.
+  - No other ambiguity found between the spec's ranking/policy rules (§4.7, §4.9) and the real data —
+    every tie-break in the project ranking (§4.7.9) was exercised by the real fixture's numbers
+    (harborline/northwind tie on identityConflicts, atlas/quill tie on identityConflicts+humanFirst)
+    and resolved exactly as Appendix A-4 shows on the first implementation, with no adjustment needed.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)

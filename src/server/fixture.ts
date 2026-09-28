@@ -1,8 +1,8 @@
 import "server-only";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { fixtureDir } from "./config.js";
-import { AppError } from "./errors.js";
+import { fixtureDir } from "./config";
+import { AppError } from "./errors";
 
 export interface ProjectConfig {
   id: string;

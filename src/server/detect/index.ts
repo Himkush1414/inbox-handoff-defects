@@ -1,12 +1,12 @@
 import "server-only";
-import type { DetectorContext } from "./context.js";
-import { detectHD1 } from "./hd1-missing-summary.js";
-import { detectHD2 } from "./hd2-dangling-analysis-ref.js";
-import { detectHD3 } from "./hd3-dangling-source-ref.js";
-import { detectHD4 } from "./hd4-analysis-without-sources.js";
-import { detectHD5, type ConflictGroupResult } from "./hd5-identity-conflict.js";
-import { detectHD6, type HD6Finding } from "./hd6-dangling-project-ref.js";
-import type { DetectorFinding } from "./finding.js";
+import type { DetectorContext } from "./context";
+import { detectHD1 } from "./hd1-missing-summary";
+import { detectHD2 } from "./hd2-dangling-analysis-ref";
+import { detectHD3 } from "./hd3-dangling-source-ref";
+import { detectHD4 } from "./hd4-analysis-without-sources";
+import { detectHD5, type ConflictGroupResult } from "./hd5-identity-conflict";
+import { detectHD6, type HD6Finding } from "./hd6-dangling-project-ref";
+import type { DetectorFinding } from "./finding";
 
 export interface RunCheckStats {
   recordedRunCount: number;

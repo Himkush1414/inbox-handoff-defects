@@ -1,6 +1,6 @@
 import "server-only";
-import { sourcePaths, type DetectorContext } from "./context.js";
-import type { DetectorFinding } from "./finding.js";
+import { sourcePaths, type DetectorContext } from "./context";
+import type { DetectorFinding } from "./finding";
 
 /** HD4 · analysis_without_sources · analysed with zero files reviewed (spec §3.7). */
 export function detectHD4(ctx: DetectorContext): DetectorFinding[] {

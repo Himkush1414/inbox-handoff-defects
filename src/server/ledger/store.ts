@@ -4,9 +4,9 @@ import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import { dataDir, fixtureDir } from "../config.js";
-import { AppError } from "../errors.js";
-import { Root, Signal } from "./schema.js";
+import { dataDir, fixtureDir } from "../config";
+import { AppError } from "../errors";
+import { Root, Signal } from "./schema";
 
 const LEDGER_FILE_NAME = "signal-ledger.json";
 

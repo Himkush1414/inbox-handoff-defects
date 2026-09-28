@@ -1,6 +1,6 @@
 import "server-only";
-import { canonicalId, identityKey, sourcePaths, type DetectorContext } from "./context.js";
-import type { RawSignal } from "../ledger/schema.js";
+import { canonicalId, identityKey, sourcePaths, type DetectorContext } from "./context";
+import type { RawSignal } from "../ledger/schema";
 
 export type ConflictKind = "exact_id_collision" | "near_duplicate" | "id_format_mismatch";
 

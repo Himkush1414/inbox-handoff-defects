@@ -1,5 +1,5 @@
 import "server-only";
-import type { DetectorContext } from "./context.js";
+import type { DetectorContext } from "./context";
 
 export type HD6Site = "routing_hint" | "signal_projects" | "status_key_unknown" | "status_key_not_routed";
 

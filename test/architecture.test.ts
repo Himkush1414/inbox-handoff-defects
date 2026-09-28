@@ -74,6 +74,28 @@ describe("architecture: every src/server file starts with server-only (T-62)", (
   });
 });
 
+describe("architecture: no .js-suffixed relative imports under src/server", () => {
+  // tsconfig uses moduleResolution "bundler" (spec §2), where a relative import must be
+  // extensionless to resolve. A ".js" suffix pointing at a ".ts" file is silently tolerated by
+  // Vite/Vitest but breaks `next build` (Turbopack) the first time something on a real route
+  // actually imports the chain — which is exactly how this slipped through P2 and P3 (nothing
+  // reachable from src/app imported src/server until P4's routes). This guard catches it at
+  // `npm test` time instead of at build time.
+  it("every relative import in src/server/**/*.ts is extensionless", () => {
+    const files = walk(path.join(ROOT, "src", "server"));
+    const offenders: { file: string; line: string }[] = [];
+    for (const file of files) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const line of text.split(/\r?\n/)) {
+        if (/from\s+["']\.\.?\/[^"']*\.js["']/.test(line)) {
+          offenders.push({ file: path.relative(ROOT, file), line: line.trim() });
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("architecture: dependency allowlist (T-64)", () => {
   it("package.json declares exactly the allowed dependencies", () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));

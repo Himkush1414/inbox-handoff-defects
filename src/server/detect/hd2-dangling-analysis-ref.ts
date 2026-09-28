@@ -1,6 +1,6 @@
 import "server-only";
-import type { DetectorContext } from "./context.js";
-import type { DetectorFinding } from "./finding.js";
+import type { DetectorContext } from "./context";
+import type { DetectorFinding } from "./finding";
 
 export interface HD2Result {
   findings: DetectorFinding[];

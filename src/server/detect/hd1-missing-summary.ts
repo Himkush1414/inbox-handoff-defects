@@ -1,6 +1,6 @@
 import "server-only";
-import { isBlank, type DetectorContext } from "./context.js";
-import type { DetectorFinding } from "./finding.js";
+import { isBlank, type DetectorContext } from "./context";
+import type { DetectorFinding } from "./finding";
 
 /** HD1 · missing_summary · analysed entries whose summary and notes are both empty (spec §3.7). */
 export function detectHD1(ctx: DetectorContext): DetectorFinding[] {
