@@ -96,6 +96,41 @@ describe("architecture: no .js-suffixed relative imports under src/server", () =
   });
 });
 
+describe("architecture: exactly one mutating route (T-63)", () => {
+  it("only src/app/api/repairs/route.ts exports POST/PUT/PATCH/DELETE", () => {
+    const files = walk(path.join(ROOT, "src", "app", "api"));
+    const mutators: string[] = [];
+    for (const file of files) {
+      const text = fs.readFileSync(file, "utf8");
+      if (/export\s+async\s+function\s+(POST|PUT|PATCH|DELETE)\b/.test(text)) {
+        mutators.push(path.relative(ROOT, file));
+      }
+    }
+    expect(mutators).toEqual([path.join("src", "app", "api", "repairs", "route.ts")]);
+  });
+});
+
+describe("architecture: no other code path writes the ledger or the audit log", () => {
+  // The whole point of the guarded write path is that atomicWrite() and appendAudit() are only
+  // ever called from repairs/apply.ts. This scans every server/app source file (excluding the
+  // three files that define these functions, and apply.ts itself) for a call site.
+  it("atomicWrite(...) and appendAudit(...) are called nowhere except src/server/repairs/apply.ts", () => {
+    const definitionFiles = new Set(
+      ["ledger/store.ts", "audit.ts", "repairs/apply.ts"].map((p) => path.join(ROOT, "src", "server", p)),
+    );
+    const files = [...walk(path.join(ROOT, "src", "server")), ...walk(path.join(ROOT, "src", "app"))];
+    const offenders: string[] = [];
+    for (const file of files) {
+      if (definitionFiles.has(file)) continue;
+      const text = fs.readFileSync(file, "utf8");
+      if (/\batomicWrite\s*\(/.test(text) || /\bappendAudit\s*\(/.test(text)) {
+        offenders.push(path.relative(ROOT, file));
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("architecture: dependency allowlist (T-64)", () => {
   it("package.json declares exactly the allowed dependencies", () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));

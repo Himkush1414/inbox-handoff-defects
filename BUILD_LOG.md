@@ -246,4 +246,81 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
     (harborline/northwind tie on identityConflicts, atlas/quill tie on identityConflicts+humanFirst)
     and resolved exactly as Appendix A-4 shows on the first implementation, with no adjustment needed.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: b064b6d feat(server): group and rank defects with the agent/human policy; add read routes
+
+## P5 — Guarded write path and audit · 2026-09-28 IST
+
+- Did: src/server/repairs/schema.ts (RepairRequest, spec §4.8.1 verbatim), src/server/repairs/apply.ts
+  (applyRepair: W6-W16), src/server/audit.ts (appendAudit/readAudit with injectable Io, fsync),
+  src/app/api/repairs/route.ts (W1-W5, then applyRepair — the only file in the repo exporting a
+  mutating HTTP method), src/app/api/audit/route.ts (R4). Tests: test/repairs.test.ts (T-40...T-50,
+  T-52), test/routes-write.test.ts (T-51, T-53), extended test/architecture.test.ts with T-63 and an
+  extra guard the human specifically asked for.
+- **Ambiguity found and resolved against the test table, not guessed — flagged to the human:** spec
+  W10 bundles two checks under two codes without a literal 1:1 mapping: "project ∈ s.projects and
+  status[project].state === 'analyzed'; set_summary needs HD1 on the row; requeue needs ≥1 HD1-HD4 on
+  the row → 422 PRECONDITION_FAILED · 422 NOTHING_TO_REPAIR". Read literally, "set_summary needs HD1"
+  failing could map to either code. Verified against real data: after a successful `set_summary` on
+  `2026-08-06_quill_editor_shaping`/quill (its only class, HD1), the row has zero HD1-4 classes left,
+  but `status.state` is still `"analyzed"` — so re-applying `set_summary` hits exactly this ambiguous
+  case. T-46's own expected values resolve it unambiguously: repeating `set_summary` on that clean row
+  → PRECONDITION_FAILED; a subsequent `requeue_analysis` on the same row → NOTHING_TO_REPAIR. Read this
+  way, the split is coherent: "set_summary but the precondition (HD1 present) isn't met" →
+  PRECONDITION_FAILED; "requeue but there is nothing at all to retract" → NOTHING_TO_REPAIR (a name
+  that only really fits the requeue case). Implemented per the test table (an authoritative source, not
+  a guess) and told the human before writing the code, since this was exactly the kind of ambiguity
+  they asked to be stopped for.
+- Verified (each of the human's six explicit checks for this phase):
+  1. **Single write path.** `src/app/api/repairs/route.ts` is the only route file exporting POST/PUT/
+     PATCH/DELETE (T-63, new architecture test). Added a further guard the human specifically asked
+     for: a test that scans all of `src/server/**` and `src/app/**` and fails if `atomicWrite(...)` or
+     `appendAudit(...)` is called from anywhere except `repairs/apply.ts` itself (and the two files
+     that define them) — proving no other code path can write the ledger or the audit log.
+  2. **Zod validation, unknown keys rejected.** T-40: 8 schema-level rejections (unknown top-level key,
+     `target.id` instead of `signalId`, unknown op, 19-char summary, a summary with a control
+     character, a 65-char actor name, `kind: "robot"`, a 63-hex-char revision) plus 1 acceptance case,
+     all direct against `RepairRequest` — every `strictObject` in the union rejects unrecognized keys.
+  3. **Bad-case coverage the human asked for by name**, all against the real fixture via
+     `applyRepair()` in a temp env: missing/wrong-shaped fields (T-40), a signal id that doesn't exist
+     (T-45, 404 SIGNAL_NOT_FOUND), a repair not allowed for the row's state/class (T-45's
+     wrong-project and pending-state cases, T-46's PRECONDITION_FAILED/NOTHING_TO_REPAIR cases), and a
+     stale revision (T-47, 409 STALE_REVISION with the real current revision in `details`) — plus a
+     concurrency test (T-48) proving the write lock serializes two concurrent same-baseRevision writes
+     into exactly one success and one STALE_REVISION.
+  4. **Audit trail.** T-41 checks the full audit entry shape after a real write (actor, op, target
+     including `ledgerIndex`, reason, `revisionBefore`/`revisionAfter`, `change.path`) and that
+     `total === 1`. T-53 checks `GET /api/audit` end to end through the real route (newest-first,
+     `corruptLines` counted separately from valid `total`, `limit=0` → 400 INVALID_QUERY).
+  5. **Atomicity / failure paths.** T-49: injected an `AuditIo` whose `appendFile` always throws —
+     confirmed 500 AUDIT_FAILED, the ledger file byte-identical to its pre-request state (the rollback
+     write restores it), zero audit entries, and no leftover `.tmp` file. Added T-49b (not in the
+     spec's table, but the human explicitly asked for this failure path): injected a ledger `Io` whose
+     `rename` always throws EPERM — confirmed 500 WRITE_FAILED, ledger unchanged, no audit entry, no
+     leftover `.tmp`.
+  6. **Human-first repairs blocked for agents.** T-42: an agent attempting `requeue_analysis` on
+     `2026-07-07_harborline_weekly_sync`/harborline (HD1-only, systemic, human_first) gets 403
+     POLICY_HUMAN_REQUIRED, the ledger file is byte-identical afterward, and no audit entry is
+     written. Demonstrated live against the dev server too (see below) — same result via the real
+     HTTP route, not just the unit-level function.
+  7. **fixture/ never touched.** T-52 re-checks all 6 fixture hashes against Appendix C after every
+     other write-path test has run. Manually re-verified the same hashes from the shell after the live
+     demo below. Every test uses `makeTempEnv()` for its own isolated fixture + data copy.
+  - `npm run typecheck` — clean. `npm test` — **103/103 tests pass** (9 files). `npm run build` —
+    compiles; all four routes present, `/api/audit`, `/api/defects`, `/api/health`, `/api/repairs` all
+    `ƒ (Dynamic)`, and `/api/repairs` is confirmed the only one exporting POST.
+- Caught (test bug, not a production bug): the first version of the T-46 "human writes a valid
+  summary" test called `applyRepair()` directly with a raw object literal containing
+  `" Line one\r\nline two of the summary "`, and asserted the CRLF-normalized/trimmed result. It failed
+  because `applyRepair()` is designed to receive input that has *already* gone through
+  `RepairRequest.safeParse()` (that's exactly the W1-W5-before-the-lock / W6-W16-inside-the-lock split
+  in spec §4.8) — the real route always parses first, but my test bypassed that and got the raw,
+  untransformed string back. Fixed by routing the test input through `RepairRequest.parse()` before
+  calling `applyRepair()`, matching how the route actually calls it. No production code changed.
+- Decisions:
+  - `ActorKind`/`RepairOp` types are imported into `audit.ts` from `src/lib/contracts.ts` rather than
+    redeclared, keeping one source of truth for those unions across server and (future) UI code.
+  - `auditId` is a full `crypto.randomUUID()`, not a shortened hex string. The spec's own example
+    ("5f0c…") only shows it truncated in a toast message, not as a generation rule; a UUID is simplest
+    and collision-safe. The UI can truncate for display in P7/P8.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
