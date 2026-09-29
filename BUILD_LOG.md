@@ -561,5 +561,57 @@ rather than by editing the originals:
 - Caught: nothing.
 - Decisions: none beyond the spec.
 - Deviations: none beyond those already logged (P0 branch flow; gh/PR-opening above).
-- Commits: docs: record time spent (hash confirmed in the P10.4 entry, once pushed — amending a commit
-  to inject its own post-amend hash is circular; not chasing it here)
+- Commits: 8e99da8 docs: record time spent (confirmed after push, resolving the previous entry's
+  deferred self-reference)
+
+## P10.4 — merged, final verification · 2026-09-29 IST
+
+- Did: human merged the PR (GitHub calls it "PR #1", since P0's deviation means there was only ever one
+  PR on this repo, not the spec's PR #1 + PR #2) into `main` with a merge commit. Ran the spec's exact
+  P10.4 sequence: `git switch main && git pull --ff-only && npm run smoke`.
+- Verified:
+  - `git pull --ff-only` — fast-forwarded `2ff15e0..0157fe5`, merge commit `0157fe5 Merge pull request #1
+    from Himkush1414/feat/defect-dashboard`, 80 files, no conflicts, no rebase needed.
+  - `npm run smoke` on `main` → `SMOKE PASS`, clean (no uncommitted-changes warning this time).
+  - `npm run verify` on `main` → typecheck clean, `Tests 103 passed (103)` (9 files), production build
+    compiles with the same route table as every prior phase.
+  - `npm run reset-data` after both the smoke run and the verify run; final `git status --porcelain`
+    empty.
+  - No `.env*` files anywhere in the tree; `package.json` dependencies/devDependencies still exactly the
+    P1 pins (next, react, react-dom, server-only, zod; @types/node, @types/react, @types/react-dom,
+    typescript, vitest) — nothing added across P2–P10.
+- Caught: nothing.
+- Decisions: none beyond the spec.
+- Deviations: none new. DoD-10 and DoD-11 remain not-literally-satisfied for the reasons already logged
+  in P0 (single-branch/single-PR history instead of the spec's two-branch/two-PR flow; repo privacy and
+  the `supanova-furney` collaborator are the human's own GitHub settings, outside what Claude Code can
+  verify from a checkout).
+- Commits: none (no code changed on `main`; DoD-10 forbids direct commits to `main` after P0 in any
+  case).
+
+### Definition of done (§1.4) — final check
+
+- [x] DoD-1 — clean clone serves via `npm ci`; proven by `npm run smoke`'s S1–S3 (install, build, start,
+      health), per the script's own header comment tying it to DoD-1/DoD-3.
+- [x] DoD-2 — `npm run verify` exits 0: typecheck, 103/103 tests, production build.
+- [x] DoD-3 — `npm run smoke` → `SMOKE PASS` on the committed `main` HEAD.
+- [x] DoD-4 — every Appendix A value is asserted by a test (per-phase counts confirmed against the real
+      fixture in P2–P5; full suite still 103/103 here).
+- [x] DoD-5 — architecture tests (T-60, T-62) pass; no client/page file imports `src/server`, `fixture/`
+      or JSON.
+- [x] DoD-6 — exactly one mutating route (T-63); only `store.ts`/`audit.ts` write to disk (T-61).
+- [x] DoD-7 — `fixture/` byte-identical (T-01 fixture-integrity tests; smoke S6 hash check).
+- [x] DoD-8 — UI implements every §5.7 state and §5.6 action (P7/P8 manual browser verification,
+      BUILD_LOG).
+- [x] DoD-9 — README follows §9 including "Time spent" and the cuts sections; BUILD_LOG.md has one
+      entry per phase (the P9 gap found and fixed at P10 counts as satisfying this now, not before).
+- [ ] DoD-10 — not literally satisfied: history is a single sequence of phase commits on
+      `feat/defect-dashboard` merged once into `main`, not `main` + two feature branches + two merged
+      PRs. Human-approved deviation, logged at P0.
+- [ ] DoD-11 — repo-private + `supanova-furney` collaborator: the human's own GitHub setting, not
+      something a checkout can verify. Logged as the human's responsibility at P0.
+- [x] DoD-12 — no secrets, no `.env*` files, no runtime network calls, no cloud/AI SDKs; T-64's
+      dependency allowlist test passes and the dependency list is unchanged since P1.
+
+10 of 12 checked; the remaining two are the P0-logged, human-approved branch/PR-flow and
+repo-administration deviations, not defects in the build.
