@@ -1,0 +1,32 @@
+{
+  "name": "supanova-handoff-defects",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "smoke": "node scripts/smoke.mjs",
+    "reset-data": "node scripts/reset-data.mjs",
+    "agent:repair": "node scripts/agent-repair.mjs"
+  },
+  "dependencies": {
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}
