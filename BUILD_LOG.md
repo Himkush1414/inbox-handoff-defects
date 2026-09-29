@@ -615,3 +615,19 @@ rather than by editing the originals:
 
 10 of 12 checked; the remaining two are the P0-logged, human-approved branch/PR-flow and
 repo-administration deviations, not defects in the build.
+
+## Correction — DoD-11 re-read against the actual brief · 2026-09-29 IST
+
+Per §11.1 (append-only): the P10.4 entry above marked DoD-11 unchecked because this spec document says
+"Repo is private and supanova-furney is a collaborator." The human checked Supanova's actual brief (not
+this spec) and it gives two allowed options: public, or private with `supanova-furney` added as a
+collaborator. The repo (`Himkush1414/inbox-handoff-defects`) is public. That satisfies the brief's actual
+requirement — the spec document simply wrote out only the private path and didn't mention public was
+also acceptable.
+
+- [x] DoD-11 (corrected) — repo is public, one of the brief's two allowed options. No collaborator
+      needed under that option. Not verified by re-reading the brief itself (Claude Code doesn't have
+      it); taken on the human's word after they raised the discrepancy.
+
+11 of 12 DoD items now satisfied. DoD-10 (branch/PR structure) remains the one accepted, human-approved
+deviation from P0.
