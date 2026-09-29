@@ -136,7 +136,8 @@ shows.
 
 ## Time spent
 
-<HUMAN FILLS IN: about N hours>
+About 6 hours total, across two sessions (28-29 Sept 2026): spec review, git setup, and reviewing each
+phase.
 
 ## How I worked with the agent
 

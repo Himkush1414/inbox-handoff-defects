@@ -527,3 +527,39 @@ rather than by editing the originals:
 - Decisions: none beyond the spec.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: none (no code changed; verification only).
+
+## P10 — README, PR #2, final verification (in progress) · 2026-09-29 IST
+
+- Did: Wrote README.md from spec §9 (every placeholder filled except "Time spent", which the human
+  provides per the HUMAN STEP); wrote docs/pr/PR-2.md from Appendix B; completed BUILD_LOG.md (the
+  correction and backfill entries directly above).
+- Verified:
+  - `npm run verify` — typecheck clean, `Test Files 9 passed (9)`, `Tests 103 passed (103)`, production
+    build compiles (routes unchanged: `/` and `/_not-found` static, `/api/{health,defects,repairs,audit}`
+    dynamic).
+  - `npm run smoke` → `SMOKE PASS` (warned about the then-uncommitted README/BUILD_LOG/docs changes, as
+    designed — smoke only ever tests the committed HEAD).
+  - `npm run reset-data` after both runs; `git status --porcelain` empty before committing.
+- Caught: nothing beyond the BUILD_LOG gaps already logged in the correction entry above.
+- Decisions: none beyond the spec.
+- Deviations: gh CLI is not installed (confirmed unavailable, same as P0) and, per the human's standing
+  instruction from P0, Claude Code does not open or merge PRs — the human does that in the browser. So
+  P10.3's "push, open PR #2" is only the push; docs/pr/PR-2.md is handed to the human to paste when they
+  open it. This phase is logged "(in progress)" because it stops here for the HUMAN STEP (§7, P10):
+  total hours for "Time spent". Once given, README.md gets that line, a follow-up commit "docs: record
+  time spent" is pushed, and P10.4 (merge, `git switch main && git pull --ff-only && npm run smoke`,
+  final BUILD_LOG line, DoD checklist) completes the phase.
+- Commits: fc16575 docs: README with run instructions, decisions, findings and cuts
+
+## P10 — time spent recorded · 2026-09-29 IST
+
+- Did: Human gave total time spent (HUMAN STEP, §7 P10): about 6 hours total, across two sessions
+  (28-29 Sept 2026), covering spec review, git setup, and reviewing each phase. Filled that into
+  README.md's "Time spent" section (the one placeholder P10.1 says to leave for the human), replacing
+  the `<HUMAN FILLS IN: about N hours>` placeholder.
+- Verified: `git status --porcelain` showed only the README.md edit; no other files touched.
+- Caught: nothing.
+- Decisions: none beyond the spec.
+- Deviations: none beyond those already logged (P0 branch flow; gh/PR-opening above).
+- Commits: docs: record time spent (hash confirmed in the P10.4 entry, once pushed — amending a commit
+  to inject its own post-amend hash is circular; not chasing it here)
