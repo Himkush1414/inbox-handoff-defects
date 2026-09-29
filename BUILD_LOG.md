@@ -461,3 +461,69 @@ Append-only record of how this repo was built with Claude Code. One entry per ph
     describes; no case needed a raw status check.
 - Deviations: none beyond the branch-flow deviation already logged in P0.
 - Commits: (this phase's commit follows this entry)
+
+## P9 — Smoke and agent scripts · 2026-09-28 IST
+
+- Did: scripts/smoke.mjs (spec §8.3): clones the committed HEAD into a fresh OS temp dir, runs
+  `npm ci && npm run build`, starts the production server directly via `process.execPath` (so killing
+  the PID actually kills it — see M-17), polls `/api/health`, then exercises `GET /api/defects`, a
+  malformed POST, a policy-blocked agent repair, a successful agent-safe repair, the resulting audit
+  trail, the clone's own `fixture/` hash, and a stale-revision rejection. Never touches this working
+  directory or its `fixture/` — everything happens inside the temp clone. Branches on
+  `process.platform` for npm's `shell: true` requirement and for killing the server (`taskkill` vs
+  `SIGTERM`), per M-17/M-18. scripts/agent-repair.mjs (spec §8.4): dry run by default, lists every
+  agent-safe row across all projects in report order plus how many human-first items it skipped and
+  why; only writes with `--apply`, through `POST /api/repairs` (never the ledger file directly), using
+  the latest revision from each successful response and stopping on the first non-200.
+- Verified: committed first (so smoke exercises the committed HEAD, not the working tree), then
+  `npm run smoke` → `SMOKE PASS`. With `npm run dev` running, `npm run agent:repair` listed exactly the
+  4 rows of Appendix A-5 and wrote nothing (no `--apply`); `npm run reset-data` afterward.
+- Caught: nothing beyond the P2 finding already logged (`process.platform` reporting `win32` under
+  WSL2 interop) — this phase is where that finding's Windows-specific branches (taskkill, `shell: true`,
+  atomicWrite's rename retries) actually execute for the first time.
+- Decisions: none beyond the spec.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: 236c409 test: add clean-clone smoke script and dry-run agent repair script
+
+## Correction — BUILD_LOG gap found at P10 · 2026-09-29 IST
+
+Per §11.1 (append-only; a correction is a new entry, not an edit to an old one): completing P10.1's
+"Complete BUILD_LOG.md" surfaced two gaps in the log above, both now fixed by entries in this file
+rather than by editing the originals:
+1. P8's "Commits" line was left as the placeholder "(this phase's commit follows this entry)" instead
+   of the real hash. The actual commit is **0463a97** `feat(ui): repair actions through the guarded
+   route, with audit panel`.
+2. P9 had no entry at all despite its commit (236c409) existing. Backfilled immediately above, from the
+   commit's own message plus the spec's P9.1/P9.2 acceptance criteria; the running verification evidence
+   for that phase is in the "P9 re-verification" entry directly below, since the session ended (power
+   cut) before this gap was caught and the original phase's live terminal output was not preserved.
+
+## P9 re-verification (post power-cut) · 2026-09-29 IST
+
+- Context: a power cut ended the previous session mid-P9/P10 handoff. Before starting P10, the human
+  asked Claude Code to independently confirm P9 was actually complete and *working*, not just
+  committed, and to show the output.
+- Verified:
+  - `git status` / `git log` — commit 236c409 (P9) already on `feat/defect-dashboard`; working tree
+    clean except the `docs/` folder the human had just added and pushed themselves (`docs/build-spec.pdf`).
+  - `npm run smoke` → `SMOKE PASS` (full clean-clone S1–S8 sequence: install, build, start, health,
+    defects-report shape, malformed POST, policy-blocked repair, successful agent-safe repair, audit
+    trail, fixture/ hash integrity, stale-revision rejection).
+  - Built and started the app locally, then ran `node scripts/agent-repair.mjs --url http://127.0.0.1:<port>`
+    (dry run, no `--apply`): `DRY RUN: 4 agent-safe row(s) found. Skipped 23 human-first item(s)`, with
+    exactly the Appendix A-5 rows (harborline `weekly_sync`, northwind `portal_handover_check`, atlas
+    `permit_intake`, atlas `inspection_scheduling_walkthrough`), each `would re-queue`. `npm run
+    reset-data` afterward confirmed the dry run wrote nothing (`data/signal-ledger.json` was the only
+    file present, and was deleted cleanly).
+- Caught: on this machine, `npm`/`npx` resolve to a **Windows-side** Node install
+  (`/mnt/d/Program Files/nodejs`) while the bare `node` binary on PATH is Linux-native
+  (`/home/manik/.local/bin/node`). Starting the server via `npm run start` / `npx next start` produced
+  stuck `EADDRINUSE` errors and connections that silently failed across separate shell invocations — a
+  cross-VM-boundary networking quirk of WSL2 interop, the same root cause as the `process.platform ===
+  "win32"` finding already logged in P2, now hitting from the opposite direction. `scripts/smoke.mjs`
+  never has this problem because it spawns the server via `process.execPath` (whichever `node` is
+  running the script) end-to-end in one process tree, per its own P9 design. No code change needed —
+  this only affects ad hoc manual verification commands, not any script in the repo.
+- Decisions: none beyond the spec.
+- Deviations: none beyond the branch-flow deviation already logged in P0.
+- Commits: none (no code changed; verification only).
